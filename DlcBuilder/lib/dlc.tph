@@ -1,0 +1,731 @@
+INCLUDE ~%MOD_FOLDER%/lib/a7_tools.tpa~
+INCLUDE ~%MOD_FOLDER%/lib/functions.tph~
+
+/**
+ * This action function creates a self-contained DLC archive for Enhanced Edition games 2.0 or higher.
+ * It includes all files from the override folder and the talk tables from the language folders.
+ * The default output filename is "workshop\*.mod".
+ */
+DEFINE_ACTION_FUNCTION CREATE_DLC
+INT_VAR
+  includeExtra  = 1
+  includeDlg    = 1
+STR_VAR
+  keyFile       = EVAL ~%MOD_FOLDER%/files/mod.key~
+  dlcFolder     = ~workshop~
+  dlcName       = ~~    // DLC filename without extension!
+BEGIN
+  // initial sanity checks...
+  ACTION_IF (STRING_LENGTH ~%dlcName%~ = 0) BEGIN
+    FAIL ~No DLC filename specified.~
+  END
+  ACTION_IF ((STRING_LENGTH ~%keyFile%~ = 0) OR (NOT FILE_EXISTS ~%keyFile%~)) BEGIN
+    FAIL ~No mod.key found.~
+  END
+  ACTION_IF (~%dlcFolder%~ STRING_EQUAL_CASE ~~) BEGIN
+    OUTER_TEXT_SPRINT dlcFolder ~.~
+  END
+  ACTION_IF (~%dlcFolder%~ STRING_EQUAL_CASE ~workshop~) BEGIN
+    OUTER_TEXT_SPRINT dlcExtension ~mod~
+  END ELSE BEGIN
+    OUTER_TEXT_SPRINT dlcExtension ~zip~
+  END
+
+  // initializing global variables...
+  // keyFile, dlcName, dlcExtension, dlcFolder already defined
+  OUTER_TEXT_SPRINT dlcFileName ~~
+  OUTER_TEXT_SPRINT dlcOutFile ~~
+  OUTER_TEXT_SPRINT workingFolder ~%MOD_FOLDER%/working~
+  OUTER_TEXT_SPRINT installFolder ~%MOD_FOLDER%/install~
+  OUTER_TEXT_SPRINT scriptFolder ~%MOD_FOLDER%/tools/scripts~
+  OUTER_TEXT_SPRINT fakeDialog ~%MOD_FOLDER%/files/dialog.tlk~
+  OUTER_SET sizeDlcMax = 1000000000   // max size for single DLC: about 1 GB
+  OUTER_SET sizeDlcTotal = 0    // tracks current size of installation folder
+  OUTER_SET dlcNameIndex = 0    // suffix for DLC archive name if multiple archives are created
+  OUTER_SET biffIndex = 0       // prefix for generated BIFF files
+  OUTER_SET fileArray = 0       // array: tracks folders and files copied into working folder as relative paths to working folder
+  OUTER_SET fileArrayIndex = 0  // index into fileArray: current state of DLC'ed files
+
+  // 1. Preparing full mod content in working folder
+  // initializations...
+  MKDIR ~%workingFolder%~
+
+  // preparing language-specific talk table
+  ACTION_IF (includeDlg != 0) BEGIN
+    MKDIR ~%workingFolder%/lang/%EE_LANGUAGE%~
+    ACTION_BASH_FOR ~lang/%EE_LANGUAGE%~ ~^dialogf?\.tlk$~ BEGIN
+      OUTER_SET sizeDlcTotal += BASH_FOR_SIZE
+      COPY_LARGE + ~%BASH_FOR_FILESPEC%~ ~%workingFolder%/lang/%EE_LANGUAGE%/%BASH_FOR_FILE%~
+      OUTER_TEXT_SPRINT register_path ~lang/%EE_LANGUAGE%/%BASH_FOR_FILE%~
+      LAM REGISTER_FILE
+    END
+  END
+
+  ACTION_IF (includeExtra != 0) BEGIN
+    // preparing manually added resources
+    LAM PREPARE_MANUAL_RESOURCES
+    // preparing resources in extra folders (movies, music, ...)
+    LAM PREPARE_EXTRA_FOLDERS
+  END
+
+  // Processing mod-added BIFF files and override folder content
+  LAM PROCESS_BIFF_OVERRIDE
+
+
+  // 2. Creating DLC archives
+  LAF RESET_INSTALL_FOLDER END
+  OUTER_WHILE (fileArrayIndex < fileArray) BEGIN
+    OUTER_TEXT_SPRINT path $EVAL fileArray(~%fileArrayIndex%~)
+
+    ACTION_IF (FILE_EXISTS ~%workingFolder%/%path%~) BEGIN
+      OUTER_SET fileSize = SIZE_OF_FILE ~%workingFolder%/%path%~
+      ACTION_IF (sizeDlcTotal > 0 AND (sizeDlcTotal + fileSize > sizeDlcMax)) BEGIN
+        LAM BIFF_OVERRIDE
+        LAM BUILD_ARCHIVE
+      END
+
+      LAF GET_PARENT_FOLDER STR_VAR filePath = EVAL ~%path%~ RET parentPath END
+      ACTION_IF (NOT DIRECTORY_EXISTS ~%installFolder%/%parentPath%~) BEGIN
+        MKDIR ~%installFolder%/%parentPath%~
+      END
+
+      MOVE + ~%workingFolder%/%path%~ ~%installFolder%/%path%~
+
+      OUTER_SET sizeDlcTotal += fileSize
+      OUTER_SET fileArrayIndex += 1
+    END
+  END
+
+  ACTION_IF (sizeDlcTotal > 0) BEGIN
+    LAM BIFF_OVERRIDE
+    LAM BUILD_ARCHIVE
+  END
+
+  // cleaning up remaining mess
+  LAF RESET_INSTALL_FOLDER INT_VAR cleanUpOnly = 1 END
+  LAF RESET_INSTALL_FOLDER INT_VAR cleanUpOnly = 1 STR_VAR folder = EVAL ~%workingFolder%~ END
+END
+
+
+// Action function: Clears the content of the current working folder
+DEFINE_ACTION_FUNCTION RESET_INSTALL_FOLDER
+INT_VAR
+  cleanUpOnly = 0
+STR_VAR
+  folder = EVAL ~%installFolder%~
+BEGIN
+  ACTION_IF (DIRECTORY_EXISTS ~%folder%~) BEGIN
+    DELETE + ~%folder%~
+  END
+
+  ACTION_IF (cleanUpOnly = 0) BEGIN
+    MKDIR ~%folder%~
+
+    // preparing empty key file
+    COPY + ~%keyFile%~ ~%folder%/chitin.key~
+
+    // creating default extra directories
+    MKDIR ~%folder%/movies~
+    MKDIR ~%folder%/music~
+    MKDIR ~%folder%/override~
+    MKDIR ~%folder%/scripts~
+  END
+END
+
+
+// Patch function: Works around a bug in the game engine which fails to load KEY files containing backslashes as pathname separator
+DEFINE_PATCH_FUNCTION FIX_KEY
+BEGIN
+  READ_LONG 0x08 numBiffs
+  READ_LONG 0x10 ofsBiffs
+  FOR (idx = 0; idx < numBiffs; ++idx) BEGIN
+    SET curOfs = ofsBiffs + idx*12
+    READ_LONG (curOfs + 0x04) ofsBiffName
+    READ_SHORT (curOfs + 0x08) lenBiffName
+    READ_ASCII ofsBiffName biffName ELSE ~~ (lenBiffName) NULL
+    PATCH_IF (NOT ~%biffName%~ STRING_EQUAL_CASE ~~) BEGIN
+      INNER_PATCH_SAVE biffName ~%biffName%~ BEGIN
+        REPLACE_TEXTUALLY ~\\~ ~/~
+      END
+      WRITE_ASCIIE ofsBiffName ~%biffName%~
+    END
+  END
+END
+
+
+// Action function: Makes a BIFF file out of the content of "biffFolder" found in "installFolder".
+DEFINE_ACTION_FUNCTION MAKE_BIFF_FILE
+INT_VAR
+  cleanUp     = 1   // whether to remove the biff folder afterwards
+STR_VAR
+  baseFolder  = EVAL ~%installFolder%~
+  biffFolder  = ~~
+BEGIN
+  ACTION_IF (NOT ~%baseFolder%~ STRING_EQUAL ~~ AND NOT ~%biffFolder%~ STRING_EQUAL ~~) BEGIN
+    ACTION_IF (NOT DIRECTORY_EXISTS ~%baseFolder%/data~) BEGIN
+      MKDIR ~%baseFolder%/data~
+    END
+
+    // Script handling is a bit ugly since there is no easy way to execute a tool from a specific working directory.
+    LAF GET_TOOL_BINARY STR_VAR tool_name = ~weidu~ RET tool_binary END
+    ACTION_IF (NOT ~%tool_binary%~ STRING_EQUAL ~~) BEGIN
+      ACTION_IF (~%WEIDU_OS%~ STRING_EQUAL_CASE ~win32~) BEGIN
+        OUTER_TEXT_SPRINT scriptFile ~%baseFolder%/run.cmd~
+        COPY + ~%scriptFolder%/win32/run.cmd~ ~%scriptFile%~
+        OUTER_PATCH_SAVE tool_binary ~%tool_binary%~ BEGIN
+          REPLACE_TEXTUALLY ~/~ ~\\~
+        END
+      END ELSE BEGIN
+        OUTER_TEXT_SPRINT scriptFile ~%baseFolder%/run.sh~
+        COPY + ~%scriptFolder%/unix/run.sh~ ~%scriptFile%~
+        AT_NOW ~chmod +x %scriptFile%~
+      END
+      COPY + ~%scriptFile%~ ~%scriptFile%~
+        REPLACE_TEXTUALLY ~replace::workingFolder::replace~ ~%baseFolder%~
+        REPLACE_TEXTUALLY ~replace::tool_binary::replace~ ~%tool_binary%~
+        REPLACE_TEXTUALLY ~replace::biffFolder::replace~ ~%biffFolder%~
+        REPLACE_TEXTUALLY ~replace::EE_LANGUAGE::replace~ ~%EE_LANGUAGE%~
+      COPY + ~%fakeDialog%~ ~%baseFolder%/dialog.tlk~ // needed to satisfy weidu
+      LAF EXECUTE_TOOL STR_VAR tool_binary = EVAL ~%scriptFile%~ END
+      DELETE + ~%scriptFile%~
+      DELETE + ~%baseFolder%/dialog.tlk~
+      ACTION_IF (cleanUp != 0) BEGIN
+        DELETE + ~%baseFolder%/%biffFolder%~
+      END
+    END ELSE BEGIN
+      FAIL ~Missing external tool: weidu~
+    END
+  END ELSE BEGIN
+    FAIL ~No working or biff folder specified~
+  END
+END
+
+
+// Includes manually registered files in the DLC creation process
+DEFINE_ACTION_MACRO PREPARE_MANUAL_RESOURCES
+BEGIN
+  ACTION_BASH_FOR ~%workingFolder%~ ~^.+\.txt$~ BEGIN
+    COPY - ~%BASH_FOR_FILESPEC%~ ~%BASH_FOR_FILESPEC%~
+      LPM GET_TEXT_LINES
+      PHP_EACH entries AS _ => entry BEGIN
+        PATCH_IF (NOT DIRECTORY_EXISTS ~%entry%~ AND FILE_EXISTS ~%entry%~) BEGIN
+          INNER_ACTION BEGIN
+            LAF GET_PARENT_FOLDER STR_VAR filePath = EVAL ~%entry%~ RET parentPath END
+            MKDIR ~%workingFolder%/%parentPath%~
+            COPY_LARGE + ~%entry%~ ~%workingFolder%/%entry%~
+            OUTER_TEXT_SPRINT register_path ~%entry%~
+            LAM REGISTER_FILE
+          END
+        END
+      END
+  END
+END
+
+
+// 1. Copies game override into working folder override
+// 2. Determines mod-added biffs and extracts their content into the working folder override
+DEFINE_ACTION_MACRO PROCESS_BIFF_OVERRIDE
+BEGIN
+  LOCAL_SET found = 0
+  LOCAL_SET error = 0
+  LOCAL_SET idx = 0
+  LOCAL_SET idx2 = 0
+  LOCAL_SET numBiffs = 0
+  LOCAL_SET ofsBiffs = 0
+  LOCAL_SET ofsFileName = 0
+  LOCAL_SET lenFileName = 0
+  LOCAL_SET backupBiffList = 0
+  LOCAL_SET currentBiffList = 0
+  LOCAL_SET numEntries = 0
+  LOCAL_SET ofsEntries = 0
+  LOCAL_SET resType = 0
+  LOCAL_SET locator = 0
+  LOCAL_TEXT_SPRINT _ ~~
+  LOCAL_TEXT_SPRINT weiduEntry ~~
+  LOCAL_TEXT_SPRINT entry ~~
+  LOCAL_TEXT_SPRINT mappingFile ~~
+  LOCAL_TEXT_SPRINT chitinBackup ~~
+  LOCAL_TEXT_SPRINT fileName ~~
+  LOCAL_TEXT_SPRINT sig ~~
+  LOCAL_TEXT_SPRINT bakBiff ~~
+  LOCAL_TEXT_SPRINT curBiff ~~
+  LOCAL_TEXT_SPRINT resFile ~~
+
+  MKDIR ~%workingFolder%/override~
+
+  // 1. Copies override content into working override
+  ACTION_BASH_FOR ~override~ ~^.+$~ BEGIN
+    COPY_LARGE + ~%BASH_FOR_FILESPEC%~ ~%workingFolder%/%BASH_FOR_FILESPEC%~
+    OUTER_TEXT_SPRINT register_path ~%BASH_FOR_FILESPEC%~
+    LAM REGISTER_FILE
+  END
+
+  // 2. Determines mod-added biffs and extracts their content into the working override
+  ACTION_IF (FILE_EXISTS ~weidu.log~ AND DIRECTORY_EXISTS ~%workingFolder%~) BEGIN
+    COPY - ~weidu.log~ ~weidu.log~
+      LPM GET_WEIDU_LINES
+
+    // searching for backed up chitin.key if available
+    OUTER_SET found = 0
+    ACTION_PHP_EACH weiduEntries AS _ => weiduEntry BEGIN
+      ACTION_IF (found = 0) BEGIN
+        LAF PARSE_WEIDU_ENTRY STR_VAR weiduEntry = EVAL ~%weiduEntry%~ RET tp2 language component success END
+        ACTION_IF (success) BEGIN
+          ACTION_IF (FILE_EXISTS ~%tp2%~) BEGIN
+            LAF GET_BACKUP_FOLDER STR_VAR tp2File = EVAL ~%tp2%~ RET backupPath success END
+            ACTION_IF (success) BEGIN
+              OUTER_TEXT_SPRINT mappingFile ~%backupPath%/%component%/mappings.%component%~
+              ACTION_IF (FILE_EXISTS ~%mappingFile%~) BEGIN
+                COPY - ~%mappingFile%~ ~%mappingFile%~
+                  LPM GET_TEXT_LINES
+
+                ACTION_PHP_EACH entries AS _ => entry BEGIN
+                  ACTION_IF (~%entry%~ STRING_MATCHES_REGEXP ~CHITIN.KEYTB#"SPACE".+~ = 0) BEGIN
+                    OUTER_PATCH_SAVE chitinBackup ~%entry%~ BEGIN
+                      REPLACE_TEXTUALLY ~^CHITIN.KEYTB#"SPACE"\(.+\)$~ ~\1~
+                    END
+                    OUTER_SET found = 1
+                  END
+                END
+              END
+            END
+          END
+        END
+      END
+    END
+
+    // determining added biff files
+    ACTION_IF (found) BEGIN
+      OUTER_SET error = 0
+
+      // 1. generate list of biffs from backup chitin.key -> backupBiffList
+      OUTER_SET backupBiffList = 0
+      COPY - ~%chitinBackup%~ ~%chitinBackup%~
+        READ_ASCII 0 sig (8)
+        PATCH_IF (~%sig%~ STRING_EQUAL ~KEY V1  ~) BEGIN
+          READ_LONG 0x08 numBiffs
+          READ_LONG 0x10 ofsBiffs
+          FOR (idx = 0; idx < numBiffs; idx += 1) BEGIN
+            SET curOfs = ofsBiffs + (idx * 12)
+            READ_LONG (curOfs + 4) ofsFileName
+            READ_SHORT (curOfs + 8) lenFileName
+            READ_ASCII ofsFileName fileName (lenFileName) NULL
+            INNER_PATCH_SAVE fileName ~%fileName%~ BEGIN REPLACE_TEXTUALLY ~\\~ ~/~ END
+            TEXT_SPRINT EVAL $EVAL backupBiffList(~%backupBiffList%~) ~%fileName%~
+            SET backupBiffList += 1
+          END
+        END ELSE BEGIN
+          SET error = 1
+        END
+
+      // 2. generate list of biffs from current chitin.key -> currentBiffList
+      ACTION_IF (error = 0) BEGIN
+        OUTER_SET currentBiffList = 0
+        COPY - ~chitin.key~ ~chitin.key~
+          READ_ASCII 0 sig (8)
+          PATCH_IF (~%sig%~ STRING_EQUAL ~KEY V1  ~) BEGIN
+            READ_LONG 0x08 numBiffs
+            READ_LONG 0x10 ofsBiffs
+            FOR (idx = 0; idx < numBiffs; idx += 1) BEGIN
+              SET curOfs = ofsBiffs + (idx * 12)
+              READ_LONG (curOfs + 4) ofsFileName
+              READ_SHORT (curOfs + 8) lenFileName
+              READ_ASCII ofsFileName fileName (lenFileName) NULL
+              INNER_PATCH_SAVE fileName ~%fileName%~ BEGIN REPLACE_TEXTUALLY ~\\~ ~/~ END
+              TEXT_SPRINT $EVAL currentBiffList(~%currentBiffList%~) ~%fileName%~
+              SET currentBiffList += 1
+            END
+          END ELSE BEGIN
+            SET error = 1
+          END
+      END
+
+      // 3. remove identical lines from currentBiffList
+      ACTION_IF (error = 0) BEGIN
+        OUTER_FOR (idx = 0; idx < currentBiffList; idx += 1) BEGIN
+          OUTER_TEXT_SPRINT curBiff $EVAL currentBiffList(~%idx%~)
+          OUTER_FOR (idx2 = 0; idx2 < backupBiffList; idx2 += 1) BEGIN
+            OUTER_TEXT_SPRINT bakBiff $EVAL backupBiffList(~%idx2%~)
+            ACTION_IF (~%curBiff%~ STRING_EQUAL_CASE ~%bakBiff%~) BEGIN
+              OUTER_TEXT_SPRINT $EVAL currentBiffList(~%idx%~) ~~
+              OUTER_SET idx2 = backupBiffList
+            END
+          END
+          OUTER_TEXT_SPRINT temp $EVAL currentBiffList(~%idx%~)
+          ACTION_IF (NOT ~%temp%~ STRING_EQUAL ~~) BEGIN
+            LOG ~DEBUG: Added biff archive = "%temp%"~
+          END
+        END
+      END
+
+      // 4. Scan resource entries in current chitin.key and COPY_EXISTING files referenced in one of the listed BIFFs
+      ACTION_IF (error = 0) BEGIN
+        COPY - ~chitin.key~ ~chitin.key~
+          READ_LONG 0x0c numEntries
+          READ_LONG 0x14 ofsEntries
+          FOR (idx = 0; idx < numEntries; idx += 1) BEGIN
+            SET ofsEntry = ofsEntries + (idx * 14)
+            READ_ASCII ofsEntry resName (8) NULL
+            READ_SHORT (ofsEntry + 8) resType
+            READ_LONG (ofsEntry + 10) locator
+
+            // checking associated BIFF
+            SET locator = locator BLSR 20
+            PATCH_IF (locator < currentBiffList) BEGIN
+              TEXT_SPRINT curBiff $EVAL currentBiffList(~%locator%~)
+              PATCH_IF (NOT ~%curBiff%~ STRING_EQUAL ~~) BEGIN
+                // copy resource into working folder
+                LPF GET_RESOURCE_EXT INT_VAR type = resType RET resExt END
+                PATCH_IF (NOT ~%resExt%~ STRING_EQUAL ~~) BEGIN
+                  TEXT_SPRINT resFile ~%resName%.%resExt%~
+                  PATCH_IF (FILE_EXISTS_IN_GAME ~%resFile%~ AND NOT FILE_EXISTS ~%workingFolder%/override/%resFile%~) BEGIN
+                    INNER_ACTION BEGIN
+                      COPY_EXISTING + ~%resFile%~ ~%workingFolder%/override/%resFile%~
+                      OUTER_TEXT_SPRINT register_path ~override/%resFile%~
+                      LAM REGISTER_FILE
+                    END
+                  END
+                END
+              END
+            END
+          END
+      END
+    END
+  END
+END
+
+
+// Action function: Extracts TP2 file path, language index and component number from the given WeiDU.log entry.
+DEFINE_ACTION_FUNCTION PARSE_WEIDU_ENTRY
+STR_VAR
+  weiduEntry = ~~
+RET
+  tp2
+  language
+  component
+  success
+BEGIN
+  OUTER_TEXT_SPRINT regWeidu "^[%TAB% ]*~\([^~]+\)~[%TAB% ]*#\([0-9]+\)[%TAB% ]*#\([0-9]+\).*$"
+  ACTION_IF (~%weiduEntry%~ STRING_MATCHES_REGEXP ~%regWeidu%~ = 0) BEGIN
+    OUTER_PATCH_SAVE tp2 ~%weiduEntry%~ BEGIN
+      REPLACE_TEXTUALLY CASE_INSENSITIVE ~%regWeidu%~ ~\1~
+    END
+    OUTER_PATCH_SAVE language ~%weiduEntry%~ BEGIN
+      REPLACE_TEXTUALLY CASE_INSENSITIVE ~%regWeidu%~ ~\2~
+    END
+    OUTER_PATCH_SAVE component ~%weiduEntry%~ BEGIN
+      REPLACE_TEXTUALLY CASE_INSENSITIVE ~%regWeidu%~ ~\3~
+    END
+    OUTER_SET success = 1
+  END ELSE BEGIN
+    OUTER_SET success = 0
+  END
+END
+
+
+// Action function: Returns the backup path from the specified TP2 file if success is non-zero.
+DEFINE_ACTION_FUNCTION GET_BACKUP_FOLDER
+STR_VAR
+  tp2File = ~~
+RET
+  backupPath
+  success
+BEGIN
+  OUTER_TEXT_SPRINT backupPath ~~
+  OUTER_SET success = 0
+  ACTION_IF (FILE_EXISTS ~%tp2File%~) BEGIN
+    COPY - ~%tp2File%~ ~%tp2File%~
+      READ_ASCII 0 script (SOURCE_SIZE)
+      INNER_PATCH_SAVE backup ~%script%~ BEGIN
+        REPLACE_TEXTUALLY ~\(%WNL%\)\|\(%LNL%\)\|\(%MNL%\)~ ~%TAB%~
+        REPLACE_TEXTUALLY CASE_SENSITIVE ~~~~~^.*BACKUP[ %TAB%]+[~"][ %TAB%]*\([^%TAB%]+\)[ %TAB%]*["~].*$~~~~~ ~\1~
+      END
+      PATCH_IF (NOT ~%backup%~ STRING_EQUAL ~~ AND DIRECTORY_EXISTS ~%backup%~) BEGIN
+        TEXT_SPRINT backupPath ~%backup%~
+        SET success = 1
+      END
+  END
+END
+
+
+// Action function: Determines whether the specified path points to one of the extra folders supported by the games.
+DEFINE_ACTION_FUNCTION IS_EXTRA_FOLDER
+STR_VAR
+  filePath  = ~~
+RET
+  success
+BEGIN
+  ACTION_DEFINE_ARRAY baseFolders BEGIN ~~ ~lang/%EE_LANGUAGE%~ END
+  ACTION_DEFINE_ARRAY extraFolders BEGIN ~characters~ ~fonts~ ~movies~ ~music~ ~portraits~ ~sounds~ ~scrnshot~ ~scripts~ ~temp~ ~tempsave~ END
+  OUTER_TEXT_SPRINT folderRegExp ~\(.+\)[/\\][^/\\]+~
+  OUTER_SET success = 0
+
+  ACTION_IF (~%filePath%~ STRING_MATCHES_REGEXP ~%folderRegExp%~ = 0) BEGIN
+    OUTER_PATCH_SAVE folder ~%filePath%~ BEGIN REPLACE_TEXTUALLY ~%folderRegExp%~ ~\1~ END
+    ACTION_IF (NOT ~%folder%~ STRING_EQUAL ~~) BEGIN
+      ACTION_PHP_EACH baseFolders AS _ => baseFolder BEGIN
+        ACTION_PHP_EACH extraFolders AS _ => extraFolder BEGIN
+          ACTION_IF (NOT ~%baseFolder%~ STRING_EQUAL ~~) BEGIN
+            OUTER_TEXT_SPRINT extraFolder ~%baseFolder%/%extraFolder%~
+          END
+          ACTION_IF (success = 0 AND ~%extraFolder%~ STRING_EQUAL_CASE ~%folder%~) BEGIN
+            OUTER_SET success = 1
+          END
+        END
+      END
+    END
+  END
+END
+
+
+// Action function: Returns the path of the specified file.
+DEFINE_ACTION_FUNCTION GET_PARENT_FOLDER
+STR_VAR
+  filePath = ~~
+RET
+  parentPath
+BEGIN
+  OUTER_TEXT_SPRINT folderRegExp ~\(\(.+\)[/\\]\).+~
+  OUTER_TEXT_SPRINT parentPath ~~
+  
+  ACTION_IF (~%filePath%~ STRING_MATCHES_REGEXP ~%folderRegExp%~ = 0) BEGIN
+    OUTER_PATCH_SAVE parent ~%filePath%~ BEGIN REPLACE_TEXTUALLY ~%folderRegExp%~ ~\2~ END
+    OUTER_TEXT_SPRINT parentPath ~%parent%~
+  END
+END
+
+
+// Action macro: Registers the specified file in an internal array variable.
+DEFINE_ACTION_MACRO REGISTER_FILE
+// register_path
+BEGIN
+  ACTION_IF (VARIABLE_IS_SET register_path AND NOT ~%register_path%~ STRING_EQUAL ~~) BEGIN
+    OUTER_TEXT_SPRINT $EVAL fileArray(~%fileArray%~) ~%register_path%~
+    OUTER_TEXT_SPRINT temp $EVAL fileArray(~%fileArray%~)
+    OUTER_SET fileArray += 1
+  END
+END
+
+
+// Macro: Generates a new DLC archive name
+DEFINE_ACTION_MACRO CREATE_DLC_FILENAME
+// INT_VAR dlcNameIndex
+// RET dlcFileName, dlcOutFile, dlcNameIndex
+BEGIN
+  ACTION_IF (dlcNameIndex = 0) BEGIN
+    OUTER_TEXT_SPRINT dlcFileName ~%dlcName%.%dlcExtension%~
+  END ELSE ACTION_IF (dlcNameIndex > 0 AND dlcNameIndex < 10) BEGIN
+    OUTER_TEXT_SPRINT dlcFileName ~%dlcName%-0%dlcNameIndex%.%dlcExtension%~
+  END ELSE BEGIN
+    OUTER_TEXT_SPRINT dlcFileName ~%dlcName%-%dlcNameIndex%.%dlcExtension%~
+  END
+  OUTER_TEXT_SPRINT dlcOutFile ~%dlcFolder%/%dlcFileName%~
+  OUTER_SET dlcNameIndex += 1
+END
+
+
+// Macro: Creates a DLC archive out of the content of the install folder
+DEFINE_ACTION_MACRO BUILD_ARCHIVE
+BEGIN
+  LAM CREATE_DLC_FILENAME
+
+  // finalizing key file
+  MOVE + ~%installFolder%/chitin.key~ ~%installFolder%/mod.key~
+
+  // Work around: Current game versions are crashing with backslashes in BIFF path names
+  COPY + ~%installFolder%/mod.key~ ~%installFolder%/mod.key~
+    LPF FIX_KEY END
+
+  // Syntax: 7za a outfile.zip .\source\path\* -r -tzip -mx=0 -mtc=off
+  LAF GET_TOOL_BINARY STR_VAR tool_name = ~7za~ RET tool_binary END
+  OUTER_TEXT_SPRINT args ~a -r -tzip -mx=0 -mtc=off -- "%dlcOutFile%" ./%installFolder%/*~
+  LAF EXECUTE_TOOL STR_VAR tool_binary = EVAL ~%tool_binary%~ arg_0 = EVAL ~%args%~ END
+  ACTION_IF (FILE_EXISTS ~%dlcOutFile%~) BEGIN
+    LAF GET_TOOL_BINARY STR_VAR tool_name = ~centralfix~ RET tool_binary END
+    ACTION_IF (NOT ~%tool_binary%~ STRING_EQUAL ~~) BEGIN
+      LAF EXECUTE_TOOL STR_VAR tool_binary = EVAL ~%tool_binary%~ arg_0 = EVAL ~%dlcOutFile%~ END
+    END
+  END
+
+  PRINT ~Cleaning up temporary data...~
+  LAF RESET_INSTALL_FOLDER END
+  OUTER_SET sizeDlcTotal = 0
+END
+
+
+// Macro: Produces BIFF files out of the %installFolder%/override folder content
+DEFINE_ACTION_MACRO BIFF_OVERRIDE
+BEGIN
+  LOCAL_TEXT_SPRINT char ~[^ %TAB%%WNL%]~
+  LOCAL_TEXT_SPRINT char8 ~%char%%char%?%char%?%char%?%char%?%char%?%char%?%char%?~
+  LOCAL_TEXT_SPRINT ext ~\(bmp\|mve\|wav\|wfx\|plt\|bam\|wed\|chu\|tis\|mos\|itm\|spl\|bcs\|ids\|cre\|are\|dlg\|2da\|gam\|sto\|wmp\|eff\|chr\|vvc\|vef\|pro\|wbm\|fnt\|gui\|sql\|pvrz\|glsl\|ini\|lua\|menu\|ttf\|png\)~
+  LOCAL_TEXT_SPRINT fileRegExp ~^%char8%\.%ext%$~
+
+  LOCAL_SET biffSize = 50000000    // in bytes
+  LOCAL_SET sizeTotal = 0
+  LOCAL_SET numTis = 0
+  LOCAL_SET numOther = 0
+
+  LAF TO_NUMBER_BASE INT_VAR value = biffIndex base = 36 RET number END
+  OUTER_TEXT_SPRINT biffFolder ~a7#gen%number%~
+  MKDIR ~%installFolder%/%biffFolder%~
+
+  ACTION_BASH_FOR ~%installFolder%/override~ ~^.+$~ BEGIN
+    ACTION_IF (~%BASH_FOR_FILE%~ STRING_MATCHES_REGEXP ~%fileRegExp%~ = 0) BEGIN
+      ACTION_IF ((BASH_FOR_SIZE + sizeTotal > biffSize AND sizeTotal > 0) OR numTis >= 63 OR numOther >= 16383) BEGIN
+        LAF MAKE_BIFF_FILE STR_VAR biffFolder = EVAL ~%biffFolder%~ END
+
+        OUTER_SET biffIndex += 1
+        OUTER_SET sizeTotal = 0
+        OUTER_SET numTis = 0
+        OUTER_SET numOther = 0
+        LAF TO_NUMBER_BASE INT_VAR value = biffIndex base = 36 RET number END
+        OUTER_TEXT_SPRINT biffFolder ~a7#gen%number%~
+        MKDIR ~%installFolder%/%biffFolder%~
+      END
+      MOVE + ~%BASH_FOR_FILESPEC%~ ~%installFolder%/%biffFolder%/%BASH_FOR_FILE%~
+      ACTION_IF (~%BASH_FOR_EXT%~ STRING_EQUAL_CASE ~TIS~) BEGIN
+        OUTER_SET numTis += 1
+      END ELSE BEGIN
+        OUTER_SET numOther += 1
+      END
+      OUTER_SET sizeTotal += BASH_FOR_SIZE
+    END
+  END
+
+  ACTION_IF (sizeTotal > 0 OR numTis > 0 OR numOther > 0) BEGIN
+    LAF MAKE_BIFF_FILE STR_VAR biffFolder = EVAL ~%biffFolder%~ END
+    OUTER_SET biffIndex += 1
+  END
+
+  ACTION_IF (DIRECTORY_EXISTS ~%installFolder%/%biffFolder%~) BEGIN
+    DELETE + ~%installFolder%/%biffFolder%~
+  END
+END
+
+
+// Macro: Prepares content of extra folders.
+DEFINE_ACTION_MACRO PREPARE_EXTRA_FOLDERS
+BEGIN
+  LOCAL_TEXT_SPRINT uninstallFile ~~
+  LOCAL_SET sizeFile = 0
+
+  ACTION_IF (FILE_EXISTS ~weidu.log~ AND DIRECTORY_EXISTS ~%workingFolder%~) BEGIN
+    COPY - ~weidu.log~ ~weidu.log~
+      LPM GET_WEIDU_LINES
+    ACTION_PHP_EACH weiduEntries AS _ => weiduEntry BEGIN
+      LAF PARSE_WEIDU_ENTRY STR_VAR weiduEntry = EVAL ~%weiduEntry%~ RET tp2 language component success END
+      ACTION_IF (success) BEGIN
+        ACTION_IF (FILE_EXISTS ~%tp2%~) BEGIN
+          LAF GET_BACKUP_FOLDER STR_VAR tp2File = EVAL ~%tp2%~ RET backupPath success END
+          ACTION_IF (success) BEGIN
+            OUTER_TEXT_SPRINT uninstallFile ~%backupPath%/%component%/uninstall.%component%~
+            ACTION_IF (FILE_EXISTS ~%uninstallFile%~) BEGIN
+              COPY - ~%uninstallFile%~ ~%uninstallFile%~
+                LPM GET_TEXT_LINES
+
+              ACTION_PHP_EACH entries AS _ => entry BEGIN
+                LAF IS_EXTRA_FOLDER STR_VAR filePath = EVAL ~%entry%~ RET success END
+                ACTION_IF (success) BEGIN
+                  LOG ~DEBUG: PREPARE_EXTRA_FOLDERS: File in extra folder = "%entry%"~
+                  ACTION_IF (NOT FILE_EXISTS ~%workingFolder%/%entry%~) BEGIN
+                    OUTER_SET sizeFile = SIZE_OF_FILE ~%entry%~
+
+                    LAF GET_PARENT_FOLDER STR_VAR filePath = EVAL ~%entry%~ RET parentPath END
+                    ACTION_IF (NOT DIRECTORY_EXISTS ~%workingFolder%/%parentPath%~) BEGIN
+                      MKDIR ~%workingFolder%/%parentPath%~
+                    END
+                    COPY_LARGE + ~%entry%~ ~%workingFolder%/%entry%~
+                    OUTER_SET sizeDlcTotal += sizeFile
+                    OUTER_TEXT_SPRINT register_path ~%entry%~
+                    LAM REGISTER_FILE
+                  END
+                END ELSE BEGIN
+                  LOG ~DEBUG: PREPARE_EXTRA_FOLDERS: File in extra folder skipped = "%entry%"~
+                END
+              END
+            END ELSE BEGIN
+              PRINT ~Uninstall file not found: %uninstallFile%~
+            END
+          END ELSE BEGIN
+            PRINT ~Backup statement not found in: %tp2%~
+          END
+        END ELSE BEGIN
+          PRINT ~File does not exist: %tp2%~
+        END
+      END
+    END
+  END
+END
+
+
+/**
+ * Macro: Parses the current file.
+ * Returns the array "entries" where each entry consists of a single line of text..
+ */
+DEFINE_PATCH_MACRO GET_TEXT_LINES
+// RET entries
+BEGIN
+  LOCAL_TEXT_SPRINT text ~~
+  LOCAL_TEXT_SPRINT null_char ~ ~
+  LOCAL_SET curIdx = 0
+  LOCAL_SET strlen = 0
+  LOCAL_SET ofs = 0
+
+  DEFINE_ARRAY entries BEGIN END
+  READ_ASCII 0 text (SOURCE_SIZE)
+  INNER_PATCH_SAVE null_char ~%null_char%~ BEGIN WRITE_BYTE 0 0 END
+  INNER_PATCH_SAVE text ~%text%~ BEGIN
+    REPLACE_TEXTUALLY ~\(%WNL%\)\|\(%LNL%\)\|\(%MNL%\)~ ~%null_char%~
+  END
+  INNER_PATCH ~%text%~ BEGIN
+    SET strlen = STRING_LENGTH ~%text%~
+    WHILE (ofs < strlen) BEGIN
+      READ_ASCII ofs line ELSE ~~ (strlen - ofs) NULL
+      TEXT_SPRINT $EVAL entries(~%curIdx%~) ~%line%~
+      SET curIdx += 1
+      SET ofs += (STRING_LENGTH ~%line%~) + 1
+    END
+  END
+END
+
+
+/**
+ * Macro: Parses the current file (which is assumed to be WeiDU.log) for lines containing 
+ * information about installed mod components.
+ * Returns the array "weiduEntries" where each entry consists of the unprocessed installation 
+ * info of a single mod component without leading or trailing whitespace or comments.
+ */
+DEFINE_PATCH_MACRO GET_WEIDU_LINES
+// RET weiduEntries
+BEGIN
+  LOCAL_TEXT_SPRINT weidu ~~
+  LOCAL_TEXT_SPRINT null_char ~ ~
+  LOCAL_TEXT_SPRINT regWeidu ~~
+  LOCAL_SET curIdx = 0
+  LOCAL_SET strlen = 0
+  LOCAL_SET ofs = 0
+
+  DEFINE_ARRAY weiduEntries BEGIN END
+  READ_ASCII 0 weidu (SOURCE_SIZE)
+  INNER_PATCH_SAVE null_char ~%null_char%~ BEGIN WRITE_BYTE 0 0 END
+  INNER_PATCH_SAVE weidu ~%weidu%~ BEGIN
+    REPLACE_TEXTUALLY ~\(%WNL%\)\|\(%LNL%\)\|\(%MNL%\)~ ~%null_char%~
+  END
+  INNER_PATCH ~%weidu%~ BEGIN
+    TEXT_SPRINT regWeidu "^[%TAB% ]*\(~[^~]+~[%TAB% ]*#[0-9]+[%TAB% ]*#[0-9]+\).*$"
+    SET strlen = STRING_LENGTH ~%weidu%~
+    WHILE (ofs < strlen) BEGIN
+      READ_ASCII ofs line ELSE ~~ (strlen - ofs) NULL
+      PATCH_IF (~%line%~ STRING_MATCHES_REGEXP ~%regWeidu%~ = 0) BEGIN
+        INNER_PATCH_SAVE line ~%line%~ BEGIN
+          REPLACE_TEXTUALLY ~%regWeidu%~ ~\1~
+        END
+        TEXT_SPRINT $EVAL weiduEntries(~%curIdx%~) ~%line%~
+        SET curIdx += 1
+      END
+      SET ofs += (STRING_LENGTH ~%line%~) + 1
+    END
+  END
+END
+

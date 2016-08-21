@@ -1,0 +1,150 @@
+// *** Collection of general purpose functions ***
+
+// Action function: Converts a decimal number into a numeric format of given base
+DEFINE_ACTION_FUNCTION TO_NUMBER_BASE
+INT_VAR
+  value = 0 // the decimal value to convert
+  base = 16 // numeric base of output number (allowed range: 2..36)
+RET
+  number    // as string
+BEGIN
+  OUTER_TEXT_SPRINT number ~~
+  ACTION_IF (base >= 2 AND base <= 36) BEGIN
+    ACTION_DEFINE_ARRAY digit BEGIN ~0~ ~1~ ~2~ ~3~ ~4~ ~5~ ~6~ ~7~ ~8~ ~9~ ~A~ ~B~ ~C~ ~D~ ~E~ ~F~ ~G~ ~H~ ~I~ ~J~ ~K~ ~L~ ~M~ ~N~ ~O~ ~P~ ~Q~ ~R~ ~S~ ~T~ ~U~ ~V~ ~W~ ~X~ ~Y~ ~Z~ END
+    // storing signed state
+    ACTION_IF (value < 0) BEGIN
+      OUTER_SET sign = 1
+      OUTER_SET value = (NOT value) + 1
+    END ELSE BEGIN
+      OUTER_SET sign = 0
+    END
+
+    // computing number representation of "base"
+    OUTER_WHILE (value > 0) BEGIN
+      // Work-around: WeiDU does not support modulo operator
+      OUTER_SET remainder = value
+      OUTER_WHILE (remainder >= base) BEGIN
+        OUTER_SET remainder -= base
+      END
+      OUTER_TEXT_SPRINT char $digit(~%remainder%~)
+      OUTER_TEXT_SPRINT number ~%char%%number%~
+      OUTER_SET value = (value - remainder) / base
+    END
+
+    // Special: Properly handle value = 0
+    ACTION_IF (STRING_LENGTH ~%number%~ = 0) BEGIN
+      OUTER_TEXT_SPRINT number ~0~
+    END
+
+    // applying signed state
+    ACTION_IF (sign) BEGIN
+      OUTER_TEXT_SPRINT number ~-%number%~
+    END
+  END
+END
+
+
+// Patch function: Converts a decimal number into a numeric format of given base
+DEFINE_PATCH_FUNCTION TO_NUMBER_BASE
+INT_VAR
+  value = 0
+  base = 16
+RET
+  number
+BEGIN
+  INNER_ACTION BEGIN
+    LAF TO_NUMBER_BASE INT_VAR value = value base = base RET number END
+  END
+END
+
+
+// Patch function: Returns the file extension of the specified resource type
+DEFINE_PATCH_FUNCTION GET_RESOURCE_EXT
+INT_VAR type = 0  // resource type
+RET resExt        // resource extension
+BEGIN
+  TEXT_SPRINT type_1012 "2DA"
+  TEXT_SPRINT type_1010 "ARE"
+  TEXT_SPRINT type_1100 "BAH"
+  TEXT_SPRINT type_1000 "BAM"
+  TEXT_SPRINT type_1007 "BCS"
+  TEXT_SPRINT type_1022 "BIO"
+  TEXT_SPRINT type_1    "BMP"
+  TEXT_SPRINT type_1017 "BS"
+  TEXT_SPRINT type_1018 "CHR"
+  TEXT_SPRINT type_1002 "CHU"
+  TEXT_SPRINT type_1009 "CRE"
+  TEXT_SPRINT type_1011 "DLG"
+  TEXT_SPRINT type_1016 "EFF"
+  TEXT_SPRINT type_1024 "FNT"
+  TEXT_SPRINT type_1013 "GAM"
+  TEXT_SPRINT type_1029 "GLSL"
+  TEXT_SPRINT type_1026 "GUI"
+  TEXT_SPRINT type_1008 "IDS"
+  TEXT_SPRINT type_2050 "INI"
+  TEXT_SPRINT type_1005 "ITM"
+  TEXT_SPRINT type_1033 "LUA"
+  TEXT_SPRINT type_1032 "MENU"
+  TEXT_SPRINT type_1004 "MOS"
+  TEXT_SPRINT type_2    "MVE"
+  TEXT_SPRINT type_6    "PLT"
+  TEXT_SPRINT type_1035 "PNG"
+  TEXT_SPRINT type_1021 "PRO"
+  TEXT_SPRINT type_1028 "PVRZ"
+  TEXT_SPRINT type_1006 "SPL"
+  TEXT_SPRINT type_1027 "SQL"
+  TEXT_SPRINT type_2051 "SRC"
+  TEXT_SPRINT type_1014 "STO"
+  TEXT_SPRINT type_1003 "TIS"
+  TEXT_SPRINT type_1031 "TOH"
+  TEXT_SPRINT type_1030 "TOT"
+  TEXT_SPRINT type_1034 "TTF"
+  TEXT_SPRINT type_1020 "VEF"
+  TEXT_SPRINT type_1019 "VVC"
+  TEXT_SPRINT type_4    "WAV"
+  TEXT_SPRINT type_1023 "WBM"
+  TEXT_SPRINT type_1001 "WED"
+  TEXT_SPRINT type_5    "WFX"
+  TEXT_SPRINT type_1015 "WMP"
+
+  TEXT_SPRINT resExt ~~
+  PATCH_IF (VARIABLE_IS_SET EVAL ~type_%type%~) BEGIN
+    TEXT_SPRINT resExt $EVAL type(~%type%~)
+  END
+END
+
+
+// Action function: Allows the user to enter a string of characters which are returned in the "string" variable.
+DEFINE_ACTION_FUNCTION INPUT_STRING
+INT_VAR
+  minLength = 1       // min. allowed number of characters in string
+  maxLength = 32767   // max. allowed number of characters in string
+  promptRef = "-1"    // TRA reference for prompt message
+  hintRef   = "-1"    // TRA reference for hint message
+STR_VAR
+  regexp    = ~.+~    // entered data must match this expression
+RET
+  string
+BEGIN
+  OUTER_SET accepted = 0
+  OUTER_TEXT_SPRINT string ~~
+  OUTER_WHILE (accepted = 0) BEGIN
+    ACTION_IF (promptRef < 0) BEGIN
+      PRINT ~Enter string:~
+    END ELSE BEGIN
+      PRINT (AT promptRef)
+    END
+    ACTION_READLN text
+    OUTER_SET strlen = STRING_LENGTH ~%text%~
+    ACTION_IF (strlen >= minLength AND strlen <= maxLength AND (~%text%~ STRING_MATCHES_REGEXP ~^%regexp%$~ = 0)) BEGIN
+      OUTER_SET accepted = 1
+      OUTER_TEXT_SPRINT string ~%text%~
+    END ELSE BEGIN
+      ACTION_IF (hintRef < 0) BEGIN
+        PRINT ~String must not contain spaces or tab characters.~
+      END ELSE BEGIN
+        PRINT (AT hintRef)
+      END
+    END
+  END
+END

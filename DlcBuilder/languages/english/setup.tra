@@ -1,0 +1,30 @@
+// -*- coding: us-ascii -*- 
+
+@0 = ~Build DLC archive~
+@1 = ~Install DLC as *.mod in "workshop" folder (recommended)~
+@2 = ~Install DLC as *.zip in "dlc" folder~
+@3 = ~Install DLC as *.zip in the game's root folder~
+@4 = ~Install DLC as *.zip in the game's documents folder~
+@5 = ~Expert mode~
+
+@100 = ~No Enhanced Edition game detected.~
+@101 = ~No Enhanced Edition game 2.0 detected.~
+@102 = ~Enter DLC archive name (without extension):~
+@103 = ~Name must not contain spaces or special characters.~
+@104 = ~Select DLC archive location [1/2/3/4]:
+1] install:/workshop/%dlcName%.mod
+2] install:/dlc/%dlcName%.zip
+3] install:/%dlcName%.zip
+4] home:/%dlcName%.zip~
+@105 = ~Include dialog.tlk [y/n]:~
+@106 = ~Please enter 1, 2, 3 or 4.~
+@107 = ~Please enter 'y' for yes or 'n' for no.~
+@108 = ~Include files from extra folders (movies, music, scripts, ...) [y/n]:~
+@109 = ~You have selected:
+Location:           %location_msg%
+Scan extra folders: %includeExtra_msg%
+Include dialog.tlk: %includeDlg_msg%
+
+DLC archives will be prepared in %MOD_FOLDER%/working.~
+@110 = ~Accept and continue with the building process [y/n/q]:~
+@111 = ~Please enter 'y' for yes, 'n' for no or 'q' for quit.~
