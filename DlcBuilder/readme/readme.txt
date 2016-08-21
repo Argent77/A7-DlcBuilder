@@ -85,8 +85,11 @@ History
 ~~~~~~~
 
 4.0
+- Completely overhauled DLC creation process
 - Added code to include mod-addded BIFF files into the DLCs
 - Added support of check for extra folders in game's language directory
+- Improved check for modified files in extra folders
+- Properly take care of engine.lua if it has been modified
 
 3.0
 - Creates multiple DLC archives if needed to keep archive file size below 2 GB
