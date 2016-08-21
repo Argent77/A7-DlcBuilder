@@ -63,11 +63,12 @@ INT_VAR
   value = 0
   base = 16
   minDigits = 0
+  lowerCase = 1
 RET
   number
 BEGIN
   INNER_ACTION BEGIN
-    LAF TO_NUMBER_BASE INT_VAR value = value base = base minDigits = minDigits RET number END
+    LAF TO_NUMBER_BASE INT_VAR value = value base = base minDigits = minDigits lowerCase = lowerCase RET number END
   END
 END
 
