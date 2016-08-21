@@ -3,15 +3,18 @@
 // Action function: Converts a decimal number into a numeric format of given base
 DEFINE_ACTION_FUNCTION TO_NUMBER_BASE
 INT_VAR
-  value = 0 // the decimal value to convert
-  base = 16 // numeric base of output number (allowed range: 2..36)
+  value = 0     // the decimal value to convert
+  base = 16     // numeric base of output number (allowed range: 2..36)
   minDigits = 0 // minimum number of digits for the resulting number
+  lowerCase = 1 // output alphanumeric digit characters in lower case
 RET
-  number    // as string
+  number        // as string
 BEGIN
   OUTER_TEXT_SPRINT number ~~
   ACTION_IF (base >= 2 AND base <= 36) BEGIN
     ACTION_DEFINE_ARRAY digit BEGIN ~0~ ~1~ ~2~ ~3~ ~4~ ~5~ ~6~ ~7~ ~8~ ~9~ ~A~ ~B~ ~C~ ~D~ ~E~ ~F~ ~G~ ~H~ ~I~ ~J~ ~K~ ~L~ ~M~ ~N~ ~O~ ~P~ ~Q~ ~R~ ~S~ ~T~ ~U~ ~V~ ~W~ ~X~ ~Y~ ~Z~ END
+    ACTION_DEFINE_ARRAY digit_lower BEGIN ~0~ ~1~ ~2~ ~3~ ~4~ ~5~ ~6~ ~7~ ~8~ ~9~ ~a~ ~b~ ~c~ ~d~ ~e~ ~f~ ~g~ ~h~ ~i~ ~j~ ~k~ ~l~ ~m~ ~n~ ~o~ ~p~ ~q~ ~r~ ~s~ ~t~ ~u~ ~v~ ~w~ ~x~ ~y~ ~z~ END
+
     // storing signed state
     ACTION_IF (value < 0) BEGIN
       OUTER_SET sign = 1
@@ -27,7 +30,11 @@ BEGIN
       OUTER_WHILE (remainder >= base) BEGIN
         OUTER_SET remainder -= base
       END
-      OUTER_TEXT_SPRINT char $digit(~%remainder%~)
+      ACTION_IF (lowerCase = 0) BEGIN
+        OUTER_TEXT_SPRINT char $digit(~%remainder%~)
+      END ELSE BEGIN
+        OUTER_TEXT_SPRINT char $digit_lower(~%remainder%~)
+      END
       OUTER_TEXT_SPRINT number ~%char%%number%~
       OUTER_SET value = (value - remainder) / base
     END
