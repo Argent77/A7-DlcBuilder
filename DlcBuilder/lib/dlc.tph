@@ -39,6 +39,7 @@ BEGIN
   OUTER_TEXT_SPRINT installFolder ~%MOD_FOLDER%/install~
   OUTER_TEXT_SPRINT scriptFolder ~%MOD_FOLDER%/tools/scripts~
   OUTER_TEXT_SPRINT fakeDialog ~%MOD_FOLDER%/files/dialog.tlk~
+  OUTER_SET luaModified = 0     // tracks whether engine.lua has been modified
   OUTER_SET sizeDlcMax = 1000000000   // max size for single DLC: about 1 GB
   OUTER_SET sizeDlcTotal = 0    // tracks current size of installation folder
   OUTER_SET dlcNameIndex = 0    // suffix for DLC archive name if multiple archives are created
@@ -104,6 +105,20 @@ BEGIN
   // cleaning up remaining mess
   LAF RESET_INSTALL_FOLDER INT_VAR cleanUpOnly = 1 END
   LAF RESET_INSTALL_FOLDER INT_VAR cleanUpOnly = 1 STR_VAR folder = EVAL ~%workingFolder%~ END
+
+  // dealing with engine.lua
+  ACTION_IF (luaModified) BEGIN
+    COPY + ~engine.lua~ ~%dlcFolder%/engine.lua~
+    // Generate message on screen and as text file
+    OUTER_SPRINT message @112 // IMPORTANT: engine.lua has been modified. Use the copy "%dlcFolder%/engine.lua" to replace the original file in the target installation's root folder.
+    PRINT ~%message%~
+<<<<<<<< .../inlined/important.txt
+>>>>>>>>
+    COPY + ~.../inlined/important.txt~ ~%dlcFolder%/important.txt~
+      SET len = STRING_LENGTH ~%message%~
+      INSERT_BYTES 0 len
+      WRITE_ASCIIE 0 ~%message%~
+  END
 END
 
 
@@ -226,7 +241,7 @@ END
 // 2. Determines mod-added biffs and extracts their content into the working folder override
 DEFINE_ACTION_MACRO PROCESS_BIFF_OVERRIDE
 BEGIN
-  LOCAL_SET found = 0
+  LOCAL_SET foundKey = 0
   LOCAL_SET error = 0
   LOCAL_SET idx = 0
   LOCAL_SET idx2 = 0
@@ -266,9 +281,10 @@ BEGIN
       LPM GET_WEIDU_LINES
 
     // searching for backed up chitin.key if available
-    OUTER_SET found = 0
+    OUTER_SET foundKey = 0      // chitin.key
+    OUTER_SET luaModified = 0   // engine.lua
     ACTION_PHP_EACH weiduEntries AS _ => weiduEntry BEGIN
-      ACTION_IF (found = 0) BEGIN
+      ACTION_IF (foundKey = 0 OR luaModified = 0) BEGIN
         LAF PARSE_WEIDU_ENTRY STR_VAR weiduEntry = EVAL ~%weiduEntry%~ RET tp2 language component success END
         ACTION_IF (success) BEGIN
           ACTION_IF (FILE_EXISTS ~%tp2%~) BEGIN
@@ -280,11 +296,18 @@ BEGIN
                   LPM GET_TEXT_LINES
 
                 ACTION_PHP_EACH entries AS _ => entry BEGIN
-                  ACTION_IF (~%entry%~ STRING_MATCHES_REGEXP ~CHITIN.KEYTB#"SPACE".+~ = 0) BEGIN
-                    OUTER_PATCH_SAVE chitinBackup ~%entry%~ BEGIN
-                      REPLACE_TEXTUALLY ~^CHITIN.KEYTB#"SPACE"\(.+\)$~ ~\1~
+                  ACTION_IF (foundKey = 0) BEGIN
+                    ACTION_IF (~%entry%~ STRING_MATCHES_REGEXP ~CHITIN.KEYTB#"SPACE".+~ = 0) BEGIN
+                      OUTER_PATCH_SAVE chitinBackup ~%entry%~ BEGIN
+                        REPLACE_TEXTUALLY ~^CHITIN.KEYTB#"SPACE"\(.+\)$~ ~\1~
+                      END
+                      OUTER_SET foundKey = 1
                     END
-                    OUTER_SET found = 1
+                  END
+                  ACTION_IF (luaModified = 0) BEGIN
+                    ACTION_IF (~%entry%~ STRING_MATCHES_REGEXP ~ENGINE.LUATB#"SPACE".+~ = 0) BEGIN
+                      OUTER_SET luaModified = 1
+                    END
                   END
                 END
               END
@@ -295,7 +318,7 @@ BEGIN
     END
 
     // determining added biff files
-    ACTION_IF (found) BEGIN
+    ACTION_IF (foundKey) BEGIN
       OUTER_SET error = 0
 
       // 1. generate list of biffs from backup chitin.key -> backupBiffList
@@ -468,7 +491,7 @@ BEGIN
           ACTION_IF (NOT ~%baseFolder%~ STRING_EQUAL ~~) BEGIN
             OUTER_TEXT_SPRINT extraFolder ~%baseFolder%/%extraFolder%~
           END
-          ACTION_IF (success = 0 AND ~%extraFolder%~ STRING_EQUAL_CASE ~%folder%~) BEGIN
+          ACTION_IF (success = 0 AND ~%folder%~ STRING_MATCHES_REGEXP ~%extraFolder%.*~ = 0) BEGIN
             OUTER_SET success = 1
           END
         END
