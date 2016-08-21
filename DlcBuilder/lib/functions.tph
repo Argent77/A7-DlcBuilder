@@ -5,6 +5,7 @@ DEFINE_ACTION_FUNCTION TO_NUMBER_BASE
 INT_VAR
   value = 0 // the decimal value to convert
   base = 16 // numeric base of output number (allowed range: 2..36)
+  minDigits = 0 // minimum number of digits for the resulting number
 RET
   number    // as string
 BEGIN
@@ -36,6 +37,11 @@ BEGIN
       OUTER_TEXT_SPRINT number ~0~
     END
 
+    // expanding number of digits if needed
+    OUTER_WHILE (STRING_LENGTH ~%number%~ < minDigits) BEGIN
+      OUTER_TEXT_SPRINT number ~0%number%~
+    END
+
     // applying signed state
     ACTION_IF (sign) BEGIN
       OUTER_TEXT_SPRINT number ~-%number%~
@@ -49,11 +55,12 @@ DEFINE_PATCH_FUNCTION TO_NUMBER_BASE
 INT_VAR
   value = 0
   base = 16
+  minDigits = 0
 RET
   number
 BEGIN
   INNER_ACTION BEGIN
-    LAF TO_NUMBER_BASE INT_VAR value = value base = base RET number END
+    LAF TO_NUMBER_BASE INT_VAR value = value base = base minDigits = minDigits RET number END
   END
 END
 

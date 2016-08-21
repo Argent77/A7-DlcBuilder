@@ -55,7 +55,6 @@ BEGIN
   ACTION_IF (includeDlg != 0) BEGIN
     MKDIR ~%workingFolder%/lang/%EE_LANGUAGE%~
     ACTION_BASH_FOR ~lang/%EE_LANGUAGE%~ ~^dialogf?\.tlk$~ BEGIN
-      OUTER_SET sizeDlcTotal += BASH_FOR_SIZE
       COPY_LARGE + ~%BASH_FOR_FILESPEC%~ ~%workingFolder%/lang/%EE_LANGUAGE%/%BASH_FOR_FILE%~
       OUTER_TEXT_SPRINT register_path ~lang/%EE_LANGUAGE%/%BASH_FOR_FILE%~
       LAM REGISTER_FILE
@@ -374,10 +373,6 @@ BEGIN
               OUTER_SET idx2 = backupBiffList
             END
           END
-          OUTER_TEXT_SPRINT temp $EVAL currentBiffList(~%idx%~)
-          ACTION_IF (NOT ~%temp%~ STRING_EQUAL ~~) BEGIN
-            LOG ~DEBUG: Added biff archive = "%temp%"~
-          END
         END
       END
 
@@ -589,7 +584,7 @@ BEGIN
   LOCAL_SET numTis = 0
   LOCAL_SET numOther = 0
 
-  LAF TO_NUMBER_BASE INT_VAR value = biffIndex base = 36 RET number END
+  LAF TO_NUMBER_BASE INT_VAR value = biffIndex base = 36 minDigits = 2 RET number END
   OUTER_TEXT_SPRINT biffFolder ~a7#gen%number%~
   MKDIR ~%installFolder%/%biffFolder%~
 
@@ -602,7 +597,7 @@ BEGIN
         OUTER_SET sizeTotal = 0
         OUTER_SET numTis = 0
         OUTER_SET numOther = 0
-        LAF TO_NUMBER_BASE INT_VAR value = biffIndex base = 36 RET number END
+        LAF TO_NUMBER_BASE INT_VAR value = biffIndex base = 36 minDigits = 2 RET number END
         OUTER_TEXT_SPRINT biffFolder ~a7#gen%number%~
         MKDIR ~%installFolder%/%biffFolder%~
       END
@@ -650,7 +645,6 @@ BEGIN
               ACTION_PHP_EACH entries AS _ => entry BEGIN
                 LAF IS_EXTRA_FOLDER STR_VAR filePath = EVAL ~%entry%~ RET success END
                 ACTION_IF (success) BEGIN
-                  LOG ~DEBUG: PREPARE_EXTRA_FOLDERS: File in extra folder = "%entry%"~
                   ACTION_IF (NOT FILE_EXISTS ~%workingFolder%/%entry%~) BEGIN
                     OUTER_SET sizeFile = SIZE_OF_FILE ~%entry%~
 
@@ -659,12 +653,9 @@ BEGIN
                       MKDIR ~%workingFolder%/%parentPath%~
                     END
                     COPY_LARGE + ~%entry%~ ~%workingFolder%/%entry%~
-                    OUTER_SET sizeDlcTotal += sizeFile
                     OUTER_TEXT_SPRINT register_path ~%entry%~
                     LAM REGISTER_FILE
                   END
-                END ELSE BEGIN
-                  LOG ~DEBUG: PREPARE_EXTRA_FOLDERS: File in extra folder skipped = "%entry%"~
                 END
               END
             END ELSE BEGIN

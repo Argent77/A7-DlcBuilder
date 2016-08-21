@@ -1,5 +1,5 @@
 # DLC Builder
-*Allows you to create independent DLC archives out of a modded Infinity Engine Enhanced Edition game*
+*Allows you to create independent DLC archives out of a modded Infinity Engine Enhanced Edition game.*
 
 ## Overview
 Infinity Engine Enhanced Edition games since patch version 2.0 provide the feature of installing expansions in the form of DLCs. The best know example is the *Siege of Dragonspear* expansion which comes as a DLC package on GOG and Steam platforms. But this feature can be used for modding as well. 

@@ -74,9 +74,11 @@ For technical reasons the file size of DLC archives cannot exceed 2 GB. This mod
 multiple DLC archives if needed to keep file size safely below 2 GB. Each additional archive uses a simple 
 numeric suffix to the given file name. (Example: my-dlc.zip, my-dlc-01.zip, my-dlc-02.zip, ...)
 
-The DLC creation process requires a lot of free space temporarily. You should make sure to have about three 
-times as much free space as the game resources to convert into a DLC, which includes biffed files and data 
+The DLC creation process requires a lot of free space temporarily. You should make sure to have at least 
+twice as much free space as the game resources to convert into a DLC, which includes biffed files and data 
 in the override folder as well as various extra folders.
+
+The DLC generation process may take a some time to complete, especially if many mod components are involved.
 
 
 History
