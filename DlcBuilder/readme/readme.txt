@@ -90,6 +90,7 @@ History
 - Added support of check for extra folders in game's language directory
 - Improved check for modified files in extra folders
 - Properly take care of engine.lua if it has been modified
+- Updated 7zip binary to fix compatibility issues with macOS Sierra
 
 3.0
 - Creates multiple DLC archives if needed to keep archive file size below 2 GB
