@@ -568,6 +568,11 @@ BEGIN
   PRINT ~Cleaning up temporary data...~
   LAF RESET_INSTALL_FOLDER END
   OUTER_SET sizeDlcTotal = 0
+
+  // checking whether DLC archive has been produced
+  ACTION_IF (NOT FILE_EXISTS ~%dlcOutFile%~) BEGIN
+    FAIL ~Could not create DLC archive: %dlcOutFile%~
+  END
 END
 
 
