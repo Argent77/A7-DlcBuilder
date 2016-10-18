@@ -1,7 +1,7 @@
 DLC Builder
 ~~~~~~~~~~~
 
-Version: 4.0-beta
+Version: 4.0-beta2
 Author:  Argent77
 
 
@@ -91,6 +91,7 @@ History
 - Improved check for modified files in extra folders
 - Properly take care of engine.lua if it has been modified
 - Updated 7zip binary to fix compatibility issues with macOS Sierra
+- Updated WeiDU binaries to v240
 
 3.0
 - Creates multiple DLC archives if needed to keep archive file size below 2 GB
