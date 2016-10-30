@@ -226,9 +226,11 @@ BEGIN
           INNER_ACTION BEGIN
             LAF GET_PARENT_FOLDER STR_VAR filePath = EVAL ~%entry%~ RET parentPath END
             MKDIR ~%workingFolder%/%parentPath%~
-            COPY_LARGE + ~%entry%~ ~%workingFolder%/%entry%~
-            OUTER_TEXT_SPRINT register_path ~%entry%~
-            LAM REGISTER_FILE
+            ACTION_IF (FILE_EXISTS ~%entry%~) BEGIN
+              COPY_LARGE + ~%entry%~ ~%workingFolder%/%entry%~
+              OUTER_TEXT_SPRINT register_path ~%entry%~
+              LAM REGISTER_FILE
+            END
           END
         END
       END
@@ -657,9 +659,11 @@ BEGIN
                     ACTION_IF (NOT DIRECTORY_EXISTS ~%workingFolder%/%parentPath%~) BEGIN
                       MKDIR ~%workingFolder%/%parentPath%~
                     END
-                    COPY_LARGE + ~%entry%~ ~%workingFolder%/%entry%~
-                    OUTER_TEXT_SPRINT register_path ~%entry%~
-                    LAM REGISTER_FILE
+                    ACTION_IF (FILE_EXISTS ~%entry%~) BEGIN
+                      COPY_LARGE + ~%entry%~ ~%workingFolder%/%entry%~
+                      OUTER_TEXT_SPRINT register_path ~%entry%~
+                      LAM REGISTER_FILE
+                    END
                   END
                 END
               END
