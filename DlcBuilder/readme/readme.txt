@@ -89,6 +89,7 @@ History
 - Added code to include mod-addded BIFF files into the DLCs
 - Added support of check for extra folders in game's language directory
 - Improved check for modified files in extra folders
+- Added more file existence checks to prevent errors because of missing files
 - Properly take care of engine.lua if it has been modified
 - Updated 7zip binary to fix compatibility issues with macOS Sierra
 - Updated WeiDU binaries to v240
