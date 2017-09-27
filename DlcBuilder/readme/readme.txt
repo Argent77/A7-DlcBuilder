@@ -92,7 +92,8 @@ History
 - Added more file existence checks to prevent errors because of missing files
 - Properly take care of engine.lua if it has been modified
 - Updated 7zip binary to fix compatibility issues with macOS Sierra
-- Updated WeiDU binaries to v240
+- Removed centralfix binary since 7zip should already create compatible archives by itself
+- Updated WeiDU binaries to v242
 
 3.0
 - Creates multiple DLC archives if needed to keep archive file size below 2 GB

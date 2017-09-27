@@ -560,12 +560,6 @@ BEGIN
   LAF GET_TOOL_BINARY STR_VAR tool_name = ~7za~ RET tool_binary END
   OUTER_TEXT_SPRINT args ~a -r -tzip -mx=0 -mtc=off -- "%dlcOutFile%" ./%installFolder%/*~
   LAF EXECUTE_TOOL STR_VAR tool_binary = EVAL ~%tool_binary%~ arg_0 = EVAL ~%args%~ END
-  ACTION_IF (FILE_EXISTS ~%dlcOutFile%~) BEGIN
-    LAF GET_TOOL_BINARY STR_VAR tool_name = ~centralfix~ RET tool_binary END
-    ACTION_IF (NOT ~%tool_binary%~ STRING_EQUAL ~~) BEGIN
-      LAF EXECUTE_TOOL STR_VAR tool_binary = EVAL ~%tool_binary%~ arg_0 = EVAL ~%dlcOutFile%~ END
-    END
-  END
 
   PRINT ~Cleaning up temporary data...~
   LAF RESET_INSTALL_FOLDER END
