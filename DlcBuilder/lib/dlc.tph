@@ -192,7 +192,7 @@ BEGIN
       END ELSE BEGIN
         OUTER_TEXT_SPRINT scriptFile ~%baseFolder%/run.sh~
         COPY + ~%scriptFolder%/unix/run.sh~ ~%scriptFile%~
-        AT_NOW ~chmod +x %scriptFile%~
+        AT_NOW ~chmod 755 %scriptFile%~
       END
       COPY + ~%scriptFile%~ ~%scriptFile%~
         REPLACE_TEXTUALLY ~replace::workingFolder::replace~ ~%baseFolder%~

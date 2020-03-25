@@ -1,68 +1,79 @@
 DLC Builder
 ~~~~~~~~~~~
 
-Version: 4.0-beta2
+Version: 4.0-beta5
 Author:  Argent77
 
 
 Overview
 ~~~~~~~~
 
-Enhanced Edition games of version 2.0 or higher provide the feature of installing expansions in the form 
-of DLCs. The best know example is the Siege of Dragonspear expansion which comes as a DLC package on GOG 
-and Steam platforms. But this feature can be used for modding as well. 
+Enhanced Edition games of version 2.0 or higher provide the feature of installing expansions in the form of DLCs.
+The best know example is the Siege of Dragonspear expansion which comes as a DLC package on GOG and Steam platforms.
+But this feature can be used for modding as well.
 
-This mod allows you turn your modded games into DLC archives. That way you don't have to go through the 
-time-consuming and error-prone process of installing one mod after another if you simply want to reuse a 
-known mod configuration. It can also be used to quickly synchronize multiple game installations so that 
-they can be used for multiplayer sessions.
+This mod allows you turn your modded games into DLC archives. That way you don't have to go through the time-
+consuming and error-prone process of installing one mod after another if you simply want to reuse a known mod
+configuration. It can also be used to quickly synchronize multiple game installations so that they can be used for
+multiplayer sessions.
+
+
+Important note
+~~~~~~~~~~~~~~
+
+BG2:EE at patch version 2.5.16.6 is currently broken and doesn't load DLC content. Other patch versions are not
+affected. On Windows you can fix this issue by using Bubb's DLC fixer.
+Download from here: https://forums.beamdog.com/discussion/comment/1124231/#Comment_1124231
+
+In addition, since patch version 2.5 DLC archives must contain the string "dlc" (case-sensitive!) somewhere in
+their name to be recognized by the game. The mod automatically fixes the filename if needed.
 
 
 Installation
 ~~~~~~~~~~~~
 
-This mod doesn't install anything on the system. Instead it simply creates a DLC file from the current 
-modding configuration of the game. You can repeat the process as many times and at any time you want.
+This mod doesn't install anything on the system. Instead it simply creates a DLC file from the current modding
+configuration of the game. You can repeat the process as many times and at any time you want.
 
-Simply start setup-DlcBuilder.exe (on Windows) or setup-DlcBuilder (on Mac OS X) and follow the instruction. 
+Simply start setup-DlcBuilder.exe (on Windows) or setup-DlcBuilder.command (on Mac OS X) and follow the instruction.
 When prompted enter the filename of the desired DLC.
 
 
 Components
 ~~~~~~~~~~
 
-This mod allows you to create the DLC in one of several locations supported by the game. The resulting 
-filename of the DLC depending on the selected location.
+This mod allows you to create the DLC in one of several locations supported by the game. The resulting filename of
+the DLC depending on the selected location.
 
-1. Install the DLC in the "workshop" subfolder of the game's installation directory. This is the 
-   recommended location as it is scanned last by the game and therefore reduces the chance that another 
-   DLC may override one or more resources of this DLC. Supported file extension: ".mod".
+1. Install the DLC in the "workshop" subfolder of the game's installation directory. This is the recommended location
+   as it is scanned last by the game and therefore reduces the chance that another DLC may override one or more
+   resources of this DLC. Supported file extension: ".mod".
 
-2. Install the DLC in the "dlc" subfolder of the game's installation directory. This location is also 
-   used by the Siege of Dragonspear DLC when you install it on Steam. Supported file extension: ".zip".
+2. Install the DLC in the "dlc" subfolder of the game's installation directory. This location is also used by the
+   Siege of Dragonspear DLC when you install it on Steam. Supported file extension: ".zip".
 
-3. Install the DLC in the game's root folder. This location is used by the Siege of Dragonspear DLC when 
-   you install it on GOG. Supported file extension: ".zip".
+3. Install the DLC in the game's root folder. This location is used by the Siege of Dragonspear DLC when you install
+   it on GOG. Supported file extension: ".zip".
 
-4. Install the DLC in the game's documents folder. This folder is recommended for systems which don't allow 
-   to install files into the game's installation folder. Supported file extension: ".zip".
+4. Install the DLC in the game's documents folder. This folder is recommended for systems which don't allow to install
+   files into the game's installation folder. Supported file extension: ".zip".
 
 5. Activate expert mode which allows more control over the DLC building process.
 
-The resulting DLC package can be easily installed on any clean game installation. Simply drop it into one of 
-the supported DLC locations and you are done.
+The resulting DLC package can be easily installed on any clean game installation. Simply drop it into one of the
+supported DLC locations and you are done.
 
 Important:
-The game version of the target installation should match the version of the game where the DLC package has 
-been created or you may encounter missing string references or outdated lines of text.
+The game version of the target installation should match the version of the game where the DLC package has been
+created or you may encounter missing string references or outdated lines of text.
 
 Notes:
-This mod can only detect new or updated files in extra folders (such as movies, music or scripts) that have 
-been added by the WeiDU installer of the mod. Files that have been added manually or by platform-dependent 
-batch or shell scripts must be registered manually to the mod.
-Create the folder "working" in "DlcBuilder" if it doesn't yet exist and create a simple text file with .txt 
-extension (filename doesn't matter) where you list every file that has been installed in a non-standard way. 
-The path to the file must be relative to the game's installation directory.
+This mod can only detect new or updated files in extra folders (such as movies, music or scripts) that have been
+added by the WeiDU installer of the mod. Files that have been added manually or by platform-dependent batch or shell
+scripts must be registered manually to the mod.
+Create the folder "working" in "DlcBuilder" if it doesn't yet exist and create a simple text file with .txt extension
+(filename doesn't matter) where you list every file that has been installed in a non-standard way. The path to the
+file must be relative to the game's installation directory.
 
 Example, assuming a mod installed "movies/mymovie.wbm" and "scripts/myscript.bs" to the game:
 1. Create the file "mymod1.txt" in "DlcBuilder/working".
@@ -70,19 +81,32 @@ Example, assuming a mod installed "movies/mymovie.wbm" and "scripts/myscript.bs"
 movies/mymovie.wbm
 scripts/myscript.bs
 
-For technical reasons the file size of DLC archives cannot exceed 2 GB. This mod will automatically create 
-multiple DLC archives if needed to keep file size safely below 2 GB. Each additional archive uses a simple 
-numeric suffix to the given file name. (Example: my-dlc.zip, my-dlc-01.zip, my-dlc-02.zip, ...)
+For technical reasons the file size of DLC archives cannot exceed 2 GB. This mod will automatically create multiple
+DLC archives if needed to keep file size safely below 2 GB. Each additional archive uses a simple numeric suffix to
+the given file name. (Example: my-dlc.zip, my-dlc-01.zip, my-dlc-02.zip, ...)
 
-The DLC creation process requires a lot of free space temporarily. You should make sure to have at least 
-twice as much free space as the game resources to convert into a DLC, which includes biffed files and data 
-in the override folder as well as various extra folders.
+The DLC creation process requires a lot of free space temporarily. You should make sure to have at least twice as much
+free space as the game resources to convert into a DLC, which includes biffed files and data in the override folder as
+well as various extra folders.
 
 The DLC generation process may take a some time to complete, especially if many mod components are involved.
 
 
+Copyright Notice
+~~~~~~~~~~~~~~~~
+
+The mod "DLC Builder" is licensed under the "Creative Commons Attribution-ShareAlike 4.0 International License"
+(http://creativecommons.org/licenses/by-sa/4.0/).
+
+
 History
 ~~~~~~~
+
+4.1
+- Added information about DLC restrictions on more recent game patch versions to the readme
+- Ensures that string "dlc" is part of the resulting DLC filename
+- Updated WeiDU binaries to v246
+- Updated macOS 7za binary
 
 4.0
 - Completely overhauled DLC creation process

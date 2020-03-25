@@ -10,6 +10,20 @@ ALWAYS
   BEGIN
     LAF INPUT_STRING INT_VAR promptRef = 102 hintRef = 103 STR_VAR regexp = EVAL ~[^ %TAB%:\\/]+~ RET string END
     ACTION_IF (NOT ~%string%~ STRING_EQUAL ~~) BEGIN
+      ACTION_IF (RINDEX(CASE_SENSITIVE EXACT_MATCH ~dlc~ ~%string%~) < 0) BEGIN
+        // Filename must contain "dlc" (case-sensitive!) to be recognized by the game as a valid DLC.
+        OUTER_SET pos = RINDEX(CASE_INSENSITIVE EXACT_MATCH ~dlc~ ~%string%~)
+        ACTION_IF (pos >= 0) BEGIN
+          // Fix case only
+          OUTER_PATCH_SAVE string ~%string%~ BEGIN
+            WRITE_ASCII pos ~dlc~ (3)
+          END
+        END ELSE BEGIN
+          OUTER_TEXT_SPRINT string ~%string%-dlc~
+        END
+        OUTER_SPRINT msg @113
+        PRINT ~%msg% %string%~
+      END
       LAF CREATE_DLC
       STR_VAR
         dlcFolder = EVAL ~%dlcFolder%~

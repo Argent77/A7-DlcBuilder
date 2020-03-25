@@ -6,6 +6,10 @@ Infinity Engine Enhanced Edition games since patch version 2.0 provide the featu
 
 This mod allows you turn your modded games into DLC archives. That way you don't have to go through the time-consuming and error-prone process of installing one mod after another if you simply want to reuse a known mod configuration. It can also be used to quickly synchronize multiple game installations so that they can be used for multiplayer sessions.
 
+## Important note
+BG2:EE at patch version 2.5.16.6 is currently broken and doesn't load DLC content. Other patch versions are not affected. On Windows you can fix this issue by using Bubb's DLC fixer. Download from here: https://forums.beamdog.com/discussion/comment/1124231/#Comment_1124231
+
+In addition, since patch version 2.5 DLC archives must contain the string "dlc" (case-sensitive!) somewhere in their name to be recognized by the game. The mod automatically fixes the filename if needed.
 
 ## Components
 This mod allows you to create the DLC in one of several locations supported by the game. The resulting filename of the DLC depending on the selected location.
