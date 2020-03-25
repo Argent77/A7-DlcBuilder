@@ -1,6 +1,6 @@
 BACKUP ~DlcBuilder/backup~
 AUTHOR ~Argent77~
-VERSION ~4.0-beta4~
+VERSION ~4.1~
 
 ALWAYS
   INCLUDE ~DlcBuilder/lib/dlc.tph~

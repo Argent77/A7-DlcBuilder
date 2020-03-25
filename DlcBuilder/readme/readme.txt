@@ -1,7 +1,7 @@
 DLC Builder
 ~~~~~~~~~~~
 
-Version: 4.0-beta5
+Version: 4.1
 Author:  Argent77
 
 
