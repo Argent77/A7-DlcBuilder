@@ -290,7 +290,7 @@ BEGIN
 
   ACTION_IF (~%WEIDU_OS%~ STRING_EQUAL_CASE ~osx~ OR
              ~%WEIDU_OS%~ STRING_EQUAL_CASE ~unix~) BEGIN
-    AT_NOW ~chmod +x %tool_binary%~
+    AT_NOW ~chmod 755 %tool_binary%~
   END
 
   ACTION_IF (exec_type = 0) BEGIN AT_NOW ~%command%~ END
