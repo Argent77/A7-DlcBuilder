@@ -1,7 +1,7 @@
 // *** Collection of general purpose functions ***
 
 // Action function: Converts a decimal number into a numeric format of given base
-DEFINE_ACTION_FUNCTION TO_NUMBER_BASE
+DEFINE_DIMORPHIC_FUNCTION TO_NUMBER_BASE
 INT_VAR
   value = 0     // the decimal value to convert
   base = 16     // numeric base of output number (allowed range: 2..36)
@@ -10,121 +10,105 @@ INT_VAR
 RET
   number        // as string
 BEGIN
-  OUTER_TEXT_SPRINT number ~~
+  OUTER_SPRINT number ~~
   ACTION_IF (base >= 2 AND base <= 36) BEGIN
-    ACTION_DEFINE_ARRAY digit BEGIN ~0~ ~1~ ~2~ ~3~ ~4~ ~5~ ~6~ ~7~ ~8~ ~9~ ~A~ ~B~ ~C~ ~D~ ~E~ ~F~ ~G~ ~H~ ~I~ ~J~ ~K~ ~L~ ~M~ ~N~ ~O~ ~P~ ~Q~ ~R~ ~S~ ~T~ ~U~ ~V~ ~W~ ~X~ ~Y~ ~Z~ END
-    ACTION_DEFINE_ARRAY digit_lower BEGIN ~0~ ~1~ ~2~ ~3~ ~4~ ~5~ ~6~ ~7~ ~8~ ~9~ ~a~ ~b~ ~c~ ~d~ ~e~ ~f~ ~g~ ~h~ ~i~ ~j~ ~k~ ~l~ ~m~ ~n~ ~o~ ~p~ ~q~ ~r~ ~s~ ~t~ ~u~ ~v~ ~w~ ~x~ ~y~ ~z~ END
+    ACTION_DEFINE_ARRAY digits BEGIN ~0~ ~1~ ~2~ ~3~ ~4~ ~5~ ~6~ ~7~ ~8~ ~9~ ~a~ ~b~ ~c~ ~d~ ~e~ ~f~ ~g~ ~h~ ~i~ ~j~ ~k~ ~l~ ~m~ ~n~ ~o~ ~p~ ~q~ ~r~ ~s~ ~t~ ~u~ ~v~ ~w~ ~x~ ~y~ ~z~ END
 
     // storing signed state
     ACTION_IF (value < 0) BEGIN
-      OUTER_SET sign = 1
+      OUTER_SET signed = 1
       OUTER_SET value = (NOT value) + 1
     END ELSE BEGIN
-      OUTER_SET sign = 0
+      OUTER_SET signed = 0
     END
 
-    // computing number representation of "base"
-    OUTER_WHILE (value > 0) BEGIN
-      // Work-around: WeiDU does not support modulo operator
-      OUTER_SET remainder = value
-      OUTER_WHILE (remainder >= base) BEGIN
-        OUTER_SET remainder -= base
-      END
-      ACTION_IF (lowerCase = 0) BEGIN
-        OUTER_TEXT_SPRINT char $digit(~%remainder%~)
-      END ELSE BEGIN
-        OUTER_TEXT_SPRINT char $digit_lower(~%remainder%~)
-      END
-      OUTER_TEXT_SPRINT number ~%char%%number%~
-      OUTER_SET value = (value - remainder) / base
+    OUTER_WHILE (value != 0) BEGIN
+      OUTER_SET remainder = value MODULO base
+      OUTER_SPRINT digit $digits(~%remainder%~)
+      OUTER_SPRINT number ~%digit%%number%~
+      OUTER_SET value /= base
     END
 
     // Special: Properly handle value = 0
-    ACTION_IF (STRING_LENGTH ~%number%~ = 0) BEGIN
-      OUTER_TEXT_SPRINT number ~0~
+    ACTION_IF (~%number%~ STR_EQ ~~) BEGIN
+      OUTER_SPRINT number ~0~
     END
 
-    // expanding number of digits if needed
-    OUTER_WHILE (STRING_LENGTH ~%number%~ < minDigits) BEGIN
-      OUTER_TEXT_SPRINT number ~0%number%~
+    // ensure that minimum number of digits are defined
+    OUTER_SET len = STRING_LENGTH ~%number%~
+    OUTER_FOR (i = STRING_LENGTH ~%number%~; i < minDigits; ++i) BEGIN
+      OUTER_SPRINT number ~0%number%~
     END
 
-    // applying signed state
-    ACTION_IF (sign) BEGIN
-      OUTER_TEXT_SPRINT number ~-%number%~
+    // restoring signed state
+    ACTION_IF (signed) BEGIN
+      OUTER_SPRINT number ~-%number%~
+    END
+
+    ACTION_IF (NOT lowerCase) BEGIN
+      ACTION_TO_UPPER ~number~
     END
   END
 END
 
 
-// Patch function: Converts a decimal number into a numeric format of given base
-DEFINE_PATCH_FUNCTION TO_NUMBER_BASE
-INT_VAR
-  value = 0
-  base = 16
-  minDigits = 0
-  lowerCase = 1
-RET
-  number
-BEGIN
-  INNER_ACTION BEGIN
-    LAF TO_NUMBER_BASE INT_VAR value = value base = base minDigits = minDigits lowerCase = lowerCase RET number END
-  END
+ACTION_DEFINE_ASSOCIATIVE_ARRAY a7#resource_ext BEGIN
+  // type => extension
+  1012 => "2DA"
+  1010 => "ARE"
+  1100 => "BAH"
+  1000 => "BAM"
+  1007 => "BCS"
+  1022 => "BIO"
+  1    => "BMP"
+  1017 => "BS"
+  1018 => "CHR"
+  1002 => "CHU"
+  1009 => "CRE"
+  1011 => "DLG"
+  1016 => "EFF"
+  1024 => "FNT"
+  1013 => "GAM"
+  1029 => "GLSL"
+  1026 => "GUI"
+  1008 => "IDS"
+  2050 => "INI"
+  1005 => "ITM"
+  1033 => "LUA"
+  2052 => "MAZE"
+  1032 => "MENU"
+  1004 => "MOS"
+  2    => "MVE"
+  6    => "PLT"
+  1035 => "PNG"
+  1021 => "PRO"
+  1028 => "PVRZ"
+  1006 => "SPL"
+  1027 => "SQL"
+  2051 => "SRC"
+  1014 => "STO"
+  1003 => "TIS"
+  1031 => "TOH"
+  1030 => "TOT"
+  1034 => "TTF"
+  1020 => "VEF"
+  1019 => "VVC"
+  4    => "WAV"
+  1023 => "WBM"
+  1001 => "WED"
+  5    => "WFX"
+  1015 => "WMP"
 END
-
 
 // Patch function: Returns the file extension of the specified resource type
-DEFINE_PATCH_FUNCTION GET_RESOURCE_EXT
+DEFINE_DIMORPHIC_FUNCTION GET_RESOURCE_EXT
 INT_VAR type = 0  // resource type
 RET resExt        // resource extension
 BEGIN
-  TEXT_SPRINT type_1012 "2DA"
-  TEXT_SPRINT type_1010 "ARE"
-  TEXT_SPRINT type_1100 "BAH"
-  TEXT_SPRINT type_1000 "BAM"
-  TEXT_SPRINT type_1007 "BCS"
-  TEXT_SPRINT type_1022 "BIO"
-  TEXT_SPRINT type_1    "BMP"
-  TEXT_SPRINT type_1017 "BS"
-  TEXT_SPRINT type_1018 "CHR"
-  TEXT_SPRINT type_1002 "CHU"
-  TEXT_SPRINT type_1009 "CRE"
-  TEXT_SPRINT type_1011 "DLG"
-  TEXT_SPRINT type_1016 "EFF"
-  TEXT_SPRINT type_1024 "FNT"
-  TEXT_SPRINT type_1013 "GAM"
-  TEXT_SPRINT type_1029 "GLSL"
-  TEXT_SPRINT type_1026 "GUI"
-  TEXT_SPRINT type_1008 "IDS"
-  TEXT_SPRINT type_2050 "INI"
-  TEXT_SPRINT type_1005 "ITM"
-  TEXT_SPRINT type_1033 "LUA"
-  TEXT_SPRINT type_1032 "MENU"
-  TEXT_SPRINT type_1004 "MOS"
-  TEXT_SPRINT type_2    "MVE"
-  TEXT_SPRINT type_6    "PLT"
-  TEXT_SPRINT type_1035 "PNG"
-  TEXT_SPRINT type_1021 "PRO"
-  TEXT_SPRINT type_1028 "PVRZ"
-  TEXT_SPRINT type_1006 "SPL"
-  TEXT_SPRINT type_1027 "SQL"
-  TEXT_SPRINT type_2051 "SRC"
-  TEXT_SPRINT type_1014 "STO"
-  TEXT_SPRINT type_1003 "TIS"
-  TEXT_SPRINT type_1031 "TOH"
-  TEXT_SPRINT type_1030 "TOT"
-  TEXT_SPRINT type_1034 "TTF"
-  TEXT_SPRINT type_1020 "VEF"
-  TEXT_SPRINT type_1019 "VVC"
-  TEXT_SPRINT type_4    "WAV"
-  TEXT_SPRINT type_1023 "WBM"
-  TEXT_SPRINT type_1001 "WED"
-  TEXT_SPRINT type_5    "WFX"
-  TEXT_SPRINT type_1015 "WMP"
-
-  TEXT_SPRINT resExt ~~
-  PATCH_IF (VARIABLE_IS_SET EVAL ~type_%type%~) BEGIN
-    TEXT_SPRINT resExt $EVAL type(~%type%~)
+  ACTION_IF (VARIABLE_IS_SET $a7#resource_ext(~%type%~)) BEGIN
+    OUTER_SPRINT resExt $a7#resource_ext(~%type%~)
+  END ELSE BEGIN
+    OUTER_SPRINT resExt ~~
   END
 END
 
@@ -142,7 +126,7 @@ RET
   string
 BEGIN
   OUTER_SET accepted = 0
-  OUTER_TEXT_SPRINT string ~~
+  OUTER_SPRINT string ~~
   OUTER_WHILE (accepted = 0) BEGIN
     ACTION_IF (promptRef < 0) BEGIN
       PRINT ~Enter string:~
@@ -151,9 +135,9 @@ BEGIN
     END
     ACTION_READLN text
     OUTER_SET strlen = STRING_LENGTH ~%text%~
-    ACTION_IF (strlen >= minLength AND strlen <= maxLength AND (~%text%~ STRING_MATCHES_REGEXP ~^%regexp%$~ = 0)) BEGIN
+    ACTION_IF (strlen >= minLength AND strlen <= maxLength AND (~%text%~ STRING_MATCHES_REGEXP ~^%regexp%$~ == 0)) BEGIN
       OUTER_SET accepted = 1
-      OUTER_TEXT_SPRINT string ~%text%~
+      OUTER_SPRINT string ~%text%~
     END ELSE BEGIN
       ACTION_IF (hintRef < 0) BEGIN
         PRINT ~String must not contain spaces or tab characters.~

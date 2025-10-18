@@ -1,0 +1,129 @@
+BACKUP ~weidu_external/backup/DlcBuilder~
+AUTHOR ~Argent77~
+VERSION ~4.1~
+
+ALWAYS
+  // root folder for mutable data
+  OUTER_SPRINT WORK_FOLDER ~weidu_external~
+  // folder for temporary data
+  OUTER_SPRINT WORKSPACE_FOLDER ~%WORK_FOLDER%/workspace/%MOD_FOLDER%~
+
+  INCLUDE ~DlcBuilder/lib/dlc.tph~
+END
+
+README ~DlcBuilder/readme/readme-%LANGUAGE%.txt~
+       ~DlcBuilder/readme/readme.txt~
+
+LANGUAGE ~English~
+         ~english~
+         ~DlcBuilder/languages/english/setup.tra~
+
+BEGIN @1 // Install DLC as *.mod in "workshop" folder (recommended)
+  REQUIRE_PREDICATE GAME_IS ~bgee bg2ee iwdee eet pstee~ @100 // No Enhanced Edition game detected.
+  REQUIRE_PREDICATE FILE_EXISTS ~engine.lua~ @101 // No Enhanced Edition game 2.0 detected.
+  SUBCOMPONENT @0 // Build DLC
+  NO_LOG_RECORD
+
+  LAF INSTALL_DLC STR_VAR dlcFolder = ~workshop~ END
+
+
+BEGIN @2 // Install DLC as *.zip in "dlc" folder
+  REQUIRE_PREDICATE GAME_IS ~bgee bg2ee iwdee eet pstee~ @100 // No Enhanced Edition game detected.
+  REQUIRE_PREDICATE FILE_EXISTS ~engine.lua~ @101 // No Enhanced Edition game 2.0 detected.
+  SUBCOMPONENT @0 // Build DLC
+  NO_LOG_RECORD
+
+  LAF INSTALL_DLC STR_VAR dlcFolder = ~dlc~ END
+
+
+BEGIN @3 // Install DLC as *.zip in root folder of the game
+  REQUIRE_PREDICATE GAME_IS ~bgee bg2ee iwdee eet pstee~ @100 // No Enhanced Edition game detected.
+  REQUIRE_PREDICATE FILE_EXISTS ~engine.lua~ @101 // No Enhanced Edition game 2.0 detected.
+  SUBCOMPONENT @0 // Build DLC
+  NO_LOG_RECORD
+
+  LAF INSTALL_DLC STR_VAR dlcFolder = ~~ END
+
+
+BEGIN @4 // Install DLC as *.zip in Documents folder of the game
+  REQUIRE_PREDICATE GAME_IS ~bgee bg2ee iwdee eet pstee~ @100 // No Enhanced Edition game detected.
+  REQUIRE_PREDICATE FILE_EXISTS ~engine.lua~ @101 // No Enhanced Edition game 2.0 detected.
+  SUBCOMPONENT @0 // Build DLC
+  NO_LOG_RECORD
+
+  LAF INSTALL_DLC STR_VAR dlcFolder = EVAL ~%USER_DIRECTORY%~ END
+
+
+BEGIN @5 // Expert mode
+  REQUIRE_PREDICATE GAME_IS ~bgee bg2ee iwdee eet pstee~ @100 // No Enhanced Edition game detected.
+  REQUIRE_PREDICATE FILE_EXISTS ~engine.lua~ @101 // No Enhanced Edition game 2.0 detected.
+  SUBCOMPONENT @0 // Build DLC
+  NO_LOG_RECORD
+
+  // Configuring...
+  OUTER_SET outerAccepted = 0
+  OUTER_WHILE (outerAccepted == 0) BEGIN
+    // Enter DLC filename (without extension)
+    LAF INPUT_STRING INT_VAR promptRef = 102 hintRef = 103 STR_VAR regexp = EVAL ~[^ %TAB%:\\/]+~ RET string END
+    OUTER_SPRINT dlcName ~%string%~
+
+    // Select DLC archive location [1/2/3/4]
+    LAF INPUT_STRING INT_VAR promptRef = 104 hintRef = 106 STR_VAR regexp = ~[1234]~ RET string END
+    OUTER_SPRINT location ~%string%~
+
+    // Include files from extra folders (movies, music, scripts, ...) [y/n]
+    LAF INPUT_STRING INT_VAR promptRef = 108 hintRef = 107 STR_VAR regexp = ~[yn]~ RET string END
+    OUTER_SET includeExtra = (~%string%~ STR_EQ ~y~) ? 1 : 0
+
+    // Include dialog.tlk [y/n]
+    LAF INPUT_STRING INT_VAR promptRef = 105 hintRef = 107 STR_VAR regexp = ~[yn]~ RET string END
+    OUTER_SET includeDlg = (~%string%~ STR_EQ ~y~) ? 1 : 0
+
+    // preparing summary
+    ACTION_MATCH location WITH
+      1 BEGIN OUTER_SPRINT location_msg ~install:/workshop/%dlcName%.mod~ END
+      2 BEGIN OUTER_SPRINT location_msg ~install:/dlc/%dlcName%.zip~ END
+      3 BEGIN OUTER_SPRINT location_msg ~install:/%dlcName%.zip~ END
+      DEFAULT OUTER_SPRINT location_msg ~home:/%dlcName%.zip~
+    END
+
+    ACTION_IF (includeExtra != 0) BEGIN
+      OUTER_SPRINT includeExtra_msg ~yes~
+    END ELSE BEGIN
+      OUTER_SPRINT includeExtra_msg ~no~
+    END
+
+    ACTION_IF (includeDlg != 0) BEGIN
+      OUTER_SPRINT includeDlg_msg ~yes~
+    END ELSE BEGIN
+      OUTER_SPRINT includeDlg_msg ~no~
+    END
+
+    PRINT @109  // You have selected:...
+
+    LAF INPUT_STRING INT_VAR promptRef = 110 hintRef = 111 STR_VAR regexp = ~[ynq]~ RET string END
+    ACTION_IF (~%string%~ STR_EQ ~y~) BEGIN
+      OUTER_SET outerAccepted = 1
+    END ELSE ACTION_IF (~%string%~ STR_EQ ~q~) BEGIN
+      OUTER_SET outerAccepted = "-1"
+    END
+  END
+
+  // building DLC...
+  ACTION_IF (outerAccepted == 1) BEGIN
+    ACTION_MATCH location WITH
+      1 BEGIN OUTER_SPRINT dlcFolder ~workshop~ END
+      2 BEGIN OUTER_SPRINT dlcFolder ~dlc~ END
+      3 BEGIN OUTER_SPRINT dlcFolder ~~ END
+      DEFAULT OUTER_SPRINT dlcFolder ~%USER_DIRECTORY%~
+    END
+
+    LAF CREATE_DLC
+    INT_VAR
+      includeExtra  = includeExtra
+      includeDlg    = includeDlg
+    STR_VAR
+      dlcFolder     = EVAL ~%dlcFolder%~
+      dlcName       = EVAL ~%dlcName%~
+    END
+  END

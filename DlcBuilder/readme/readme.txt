@@ -1,8 +1,11 @@
 DLC Builder
 ~~~~~~~~~~~
 
-Version: 4.1
-Author:  Argent77
+Version:    4.1
+Author:     Argent77
+
+Download:   https://github.com/Argent77/A7-DlcBuilder/releases/latest
+Discussion: https://forums.beamdog.com/discussion/59766/mod-dlc-builder-for-enhanced-edition-v2-x-games
 
 
 Overview
@@ -18,15 +21,18 @@ configuration. It can also be used to quickly synchronize multiple game installa
 multiplayer sessions.
 
 
-Important note
-~~~~~~~~~~~~~~
+Important notes
+~~~~~~~~~~~~~~~
 
-BG2:EE at patch version 2.5.16.6 is currently broken and doesn't load DLC content. Other patch versions are not
-affected. On Windows you can fix this issue by using Bubb's DLC fixer.
+Patch version 2.5.16.6 of BG2:EE is broken and doesn't load DLC content. Other patch versions (older and newer) are
+not affected. On Windows you can fix this issue by using Bubb's DLC fixer.
 Download from here: https://forums.beamdog.com/discussion/comment/1124231/#Comment_1124231
 
-In addition, since patch version 2.5 DLC archives must contain the string "dlc" (case-sensitive!) somewhere in
-their name to be recognized by the game. The mod automatically fixes the filename if needed.
+Since patch version 2.5 DLC archives must contain the string "dlc" (case-sensitive!) somewhere in their name to be
+recognized by the game. The mod automatically fixes the filename if needed.
+
+EEex requires extra steps to ensure that modifications run correctly on the target system. More details can be found
+down below in the "Note about EEex" section.
 
 
 Installation
@@ -63,20 +69,33 @@ the DLC depending on the selected location.
 The resulting DLC package can be easily installed on any clean game installation. Simply drop it into one of the
 supported DLC locations and you are done.
 
-Important:
+IMPORTANT:
 The game version of the target installation should match the version of the game where the DLC package has been
 created or you may encounter missing string references or outdated lines of text.
 
-Notes:
+NOTES ABOUT EEEX:
+EEex installs several files that are expected to be found directly on the filesystem. These files must be transferred
+manually to the target system along with the DLC archive created by this mod. The following files are required:
+1. In the root folder of the game:
+  - InfinityLoader.exe
+  - InfinityLoader.db
+  - any DLL files except "decrypt.dll"
+  - any INI files
+2. In the "override" folder of the game:
+  - M___EEex.lua
+  - any LUA files starting with "B3"
+  - any LUA files starting with "EEex_"
+
+NOTES:
 This mod can only detect new or updated files in extra folders (such as movies, music or scripts) that have been
 added by the WeiDU installer of the mod. Files that have been added manually or by platform-dependent batch or shell
 scripts must be registered manually to the mod.
 Create the folder "working" in "DlcBuilder" if it doesn't yet exist and create a simple text file with .txt extension
-(filename doesn't matter) where you list every file that has been installed in a non-standard way. The path to the
-file must be relative to the game's installation directory.
+(name of the file doesn't matter) where you list every file that has been installed in a non-standard way. The path to
+the file must be relative to the game's installation directory.
 
 Example, assuming a mod installed "movies/mymovie.wbm" and "scripts/myscript.bs" to the game:
-1. Create the file "mymod1.txt" in "DlcBuilder/working".
+1. Create the file "mymod1.txt" in "DlcBuilder/working"
 2. Add the following lines to the text file:
 movies/mymovie.wbm
 scripts/myscript.bs
@@ -101,6 +120,14 @@ The mod "DLC Builder" is licensed under the "Creative Commons Attribution-ShareA
 
 History
 ~~~~~~~
+
+4.2
+- Added support for PsT:EE
+- Greatly improved processing speed
+- Modernized code
+- Outsourced working directories to keep mod folder immutable
+- Added component labels and PI metadata
+- Updated internally used binaries
 
 4.1
 - Added information about DLC restrictions on more recent game patch versions to the readme
