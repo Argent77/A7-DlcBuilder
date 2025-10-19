@@ -45,3 +45,6 @@ DLC archives will be prepared in %MOD_FOLDER%/working.~
 @126 = ~Uninstall file not found:~
 @127 = ~Backup statement not found in:~
 @128 = ~File does not exist:~
+
+// WeiDU prompts
+@-1034= "Would you like to display the readme (recommended)? [Y]es [N]o"
