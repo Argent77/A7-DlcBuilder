@@ -1,6 +1,6 @@
 BACKUP ~weidu_external/backup/DlcBuilder~
 SUPPORT ~https://forums.beamdog.com/discussion/59766~
-VERSION ~4.1~
+VERSION ~4.2~
 
 ALWAYS
   // root folder for mutable data
